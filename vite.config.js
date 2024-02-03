@@ -2,16 +2,7 @@ import { defineConfig } from "vite";
 import path from "path";
 
 export default defineConfig({
-    plugins: [
-        {
-            name: "fix-recast",
-            transform(code, id) {
-                if (id.includes("recast-detour.js")) {
-                    return code.replace(`this["Recast"]`, "window[\"Recast\"]");
-                }
-            },
-        },
-    ],
+
     build: {
         rollupOptions: {
             input: {
@@ -27,5 +18,15 @@ export default defineConfig({
             }
         }
     },
+    plugins: [
+        {
+            name: "fix-recast",
+            transform(code, id) {
+                if (id.includes("recast-detour.js")) {
+                    return code.replace(`this["Recast"]`, "window[\"Recast\"]");
+                }
+            },
+        },
+    ],
     // assetsInclude: './asset/**/*'
 });
