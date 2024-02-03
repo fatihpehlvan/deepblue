@@ -17,9 +17,8 @@ export default defineConfig({
             input: {
                 main: './index.html',
                 game: './game.html',
-                asset: './asset/**/*',
             }
         }
     },
-    assetsInclude: './asset/**/*'
+    // assetsInclude: './asset/**/*'
 });
