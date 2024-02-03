@@ -110,11 +110,12 @@ function createSkybox(scene) {
 
     return skybox
 }
+
 async function loadEnvironment(scene, light, camera) {
     return new Promise((resolve, reject) => {
         const meshes = [];
         let alb
-        BABYLON.SceneLoader.ImportMesh("", "../asset/", "game.glb", scene, (loadedMeshes) => {
+        BABYLON.SceneLoader.ImportMesh("", "../asset/", "game3.glb", scene, (loadedMeshes) => {
 
             loadedMeshes.forEach((m) => {
 
@@ -144,7 +145,10 @@ async function loadEnvironment(scene, light, camera) {
                 if (m.id === "Navmesh") {
                     meshes.push(m);
                     m.position.y = -35.93;
+                    // m.isVisible = false;
                     m.isVisible = false;
+                    m.isPickable = false;
+                    m.checkCollisions = false;
                 }
                 else if (m.id === 'Sea_Plane') {
                     m.isVisible = false;
@@ -154,7 +158,8 @@ async function loadEnvironment(scene, light, camera) {
                     m.checkCollisions = false;
                 }
 
-
+                if (m.material)
+                    m.material.wireframe = true;
                 //m.position.y = 5;
             });
             resolve(meshes); // Resolve the promise with the meshes array
@@ -556,7 +561,6 @@ function generateRandomTrashesOnSurface(navmesh, trashes, scene) {
             trash.position.copyFrom(point); // Set the position of the trash
             trash.isVisible = true; // Make the trash visible
             trash.scaling = new BABYLON.Vector3(10, 10, 10);
-            trash.showBoundingBox = true;
 
             trash.name = `Trash_${count}`;
             trash.id = `Trash_${count}`;
@@ -1244,6 +1248,7 @@ async function createScene() {
 
 
     const meshes = await loadEnvironment(scene, light, camera);
+
     // // // console.log(meshes);
     ({navmesh, recastPlugin} = await setupNavMesh(scene, meshes));
     const robot = await createRobot(scene, recastPlugin, agents);
