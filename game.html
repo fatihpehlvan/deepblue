@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/turtle.jpg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <title>Deep Blue Rescue</title>
+</head>
+<body>
+
+<div id="ui-div">
+  <button class="btn" style="margin:5px;" onclick="localStorage.setItem('GameOver', '0');window.location.href = 'index.html';">
+      <i class="fa fa-home fa-2x"></i>
+  </button>
+  <div id="fps" style="margin:5px;">0</div>
+  <div style="margin:5px;">
+    <p style="margin:0;">YOUR SCORE:</p>
+    <p id="score" style="margin:0;">0</p>
+  </div>
+  <div style="margin:5px;">
+    <div id="time">1:30</div>
+    <progress id="time-bar" value="90" max="90"></progress>
+  </div>
+  <div id="sound-toggle" style="cursor:pointer;margin:5px;">
+    SOUND: <span id="sound-status">ON</span>
+  </div>
+  <label style="margin:5px;">SHOW PATH
+    <input id="path" type="checkbox" checked="checked">
+    <span class="checkmark"></span>
+  </label>
+  <label style="margin:5px;">PLANE
+    <input id="plane" type="checkbox" checked="checked">
+    <span class="checkmark"></span>
+  </label>
+  <label style="margin:5px;">SHADER FOR SEASHELL
+    <select name="shaders" id="shaders">
+      <option value="fresnel">FRESNEL</option>
+      <option value="wave">WAVE</option>
+      <option value="blur">BLUR</option>
+    </select>
+  </label>
+</div>
+<canvas id="renderCanvas"></canvas>
+
+<script  id="vertex-shader-3d" type="application/vertexShader">#version 300 es
+  in vec4 position;
+  in vec3 normal;
+
+  uniform vec3 lightWorldPosition;
+  uniform vec3 viewWorldPosition;
+
+  uniform mat4 world;
+  uniform mat4 worldViewProjection;
+  uniform mat4 worldInverseTranspose;
+
+  out vec3 v_normal;
+  out vec3 v_surfaceToLight;
+  out vec3 v_surfaceToView;
+
+  in vec2 uv;
+
+  out vec2 v_uv;
+
+  void main() {
+    v_uv = uv;
+    gl_Position = worldViewProjection * position;
+
+    // orient the normals and pass to the fragment shader
+    v_normal = mat3(worldInverseTranspose) * normal;
+
+    // compute the world position of the surfoace
+    vec3 surfaceWorldPosition = (world * position).xyz;
+
+    // compute the vector of the surface to the light
+    // and pass it to the fragment shader
+    v_surfaceToLight = lightWorldPosition - surfaceWorldPosition;
+
+    // compute the vector of the surface to the view/camera
+    // and pass it to the fragment shader
+    v_surfaceToView = viewWorldPosition - surfaceWorldPosition;
+  }
+</script>
+<!-- fragment shader -->
+<script  id="fragment-shader-3d" type="application/fragmentShader">#version 300 es
+  precision mediump float;
+
+  // Passed in from the vertex shader.
+  in vec3 v_normal;
+  in vec3 v_surfaceToLight;
+  in vec3 v_surfaceToView;
+  in vec2 v_uv;
+
+  uniform sampler2D texturePlane;
+  uniform float intensity;
+  uniform vec3 lightDirection;
+  uniform float limit;          // in dot space
+
+  out vec4 oColor;
+
+  void main() {
+    vec4 textureColor = texture(texturePlane, v_uv);
+    // because v_normal is a varying it's interpolated
+    // so it will not be a unit vector. Normalizing it
+    // will make it a unit vector again
+    vec3 normal = normalize(v_normal);
+
+    vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+    vec3 surfaceToViewDirection = normalize(v_surfaceToView);
+    vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+    float light = 0.0;
+    float specular = 0.0;
+    float dotFromDirection = dot(surfaceToLightDirection, normalize(-lightDirection));
+    if (dotFromDirection >= limit) {
+        light = 1.0;
+    }
+
+
+    vec4 finalColor = vec4(1.0, 1.0, 1.0, 1.0);
+
+    // Lets multiply just the color portion (not the alpha)
+    // by the light
+    finalColor.rgb *= light;
+    finalColor.rgb *= textureColor.rgb;
+    finalColor.rgb *= intensity;
+    oColor = finalColor;
+
+    // Just add in the specular
+  }
+</script>
+
+<script  id="waveVertexShader" type="application/vertexShader">#version 300 es
+  in vec4 position;
+  in vec3 normal;
+
+  uniform vec3 lightWorldPosition;
+  uniform vec3 viewWorldPosition;
+
+  uniform mat4 world;
+  uniform mat4 worldViewProjection;
+  uniform mat4 worldInverseTranspose;
+  uniform float time;
+
+  out vec3 v_normal;
+  out vec3 v_surfaceToLight;
+  out vec3 v_surfaceToView;
+
+  in vec2 uv;
+
+  out vec2 v_uv;
+
+  void main() {
+    v_uv = uv;
+
+    float oscillation = 0.0;
+    float amplitude = 0.5;
+    float frequence = 10.0;
+    float angle = (time*0.001 + position.x) * frequence;
+    float z = sin(angle) * amplitude;
+
+
+    vec4 pos = worldViewProjection * vec4(position.xy, z, 1.0);
+    gl_Position = pos;
+
+    // orient the normals and pass to the fragment shader
+    v_normal = mat3(worldInverseTranspose) * normal;
+
+    // compute the world position of the surfoace
+    vec3 surfaceWorldPosition = (world * position).xyz;
+
+    // compute the vector of the surface to the light
+    // and pass it to the fragment shader
+    v_surfaceToLight = lightWorldPosition - surfaceWorldPosition;
+
+    // compute the vector of the surface to the view/camera
+    // and pass it to the fragment shader
+    v_surfaceToView = viewWorldPosition - surfaceWorldPosition;
+  }
+</script>
+
+<!--<script type="application/vertexShader" id="waveVertexShader">#version 300 es-->
+
+<!--precision mediump float;-->
+
+<!--in vec2 position;-->
+<!--in vec2 uv;-->
+<!--uniform float time;-->
+<!--uniform mat4 worldViewProjection;-->
+
+<!--out vec2 v_uv;-->
+
+<!--void main() {-->
+<!--    //vec4 pos = worldViewProjection * vec4(position, 0.0, 1.0);-->
+
+<!--    float oscillation = 0.0;-->
+<!--    float amplitude = 0.5;-->
+<!--    float frequence = 10.0;-->
+<!--    float angle = (time*0.001 + position.x) * frequence;-->
+<!--    float z = sin(angle) * amplitude;-->
+
+
+<!--    vec4 pos = worldViewProjection * vec4(position, z, 1.0);-->
+<!--    gl_Position = pos;-->
+<!--    v_uv = uv;-->
+<!--}-->
+
+<!--</script>-->
+
+<script  id="oscillationVertexShader2" type="application/vertexShader">#version 300 es
+  in vec4 position;
+  in vec3 normal;
+
+  uniform vec3 lightWorldPosition;
+  uniform vec3 viewWorldPosition;
+  uniform float time;
+  uniform mat4 world;
+  uniform mat4 worldViewProjection;
+  uniform mat4 worldInverseTranspose;
+
+  out vec3 v_normal;
+  out vec3 v_surfaceToLight;
+  out vec3 v_surfaceToView;
+
+  in vec2 uv;
+
+  out vec2 v_uv;
+
+
+  float rand(vec2 n) {
+    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+  }
+
+  float noise(vec2 p){
+    vec2 ip = floor(p);
+    vec2 u = fract(p);
+    u = u*u* (3.0-2.0*u);
+    float res = mix(
+    mix(rand (ip), rand (ip+vec2(1.0,0.0)), u.x),
+    mix(rand(ip+vec2(0.0,1.0)), rand(ip+vec2 (1.0,1.0)),u.x),u.y);
+    return res*res;
+  }
+  float fbm(vec2 x){
+    float v = 0.0;
+    float a = 0.5;
+    vec2 shift = vec2(100);
+    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+    for (int i = 0; i < 5; ++i) {
+      v += a* noise(x);
+      x = rot * x * 2.0 + shift;
+      a*= 0.5;
+    }
+    return v;
+  }
+
+
+  void main() {
+    v_uv = uv;
+
+    vec2 ab = position.xy;
+
+
+    float strength = 0.1;
+    vec2 surface = strength * vec2(
+      mix(-20.0, 20.0, fbm(5.0 * ab + 0.5 * time)),
+      mix(-20.0, 20.0, fbm(5.0 * ab + 0.5 * time))
+      );
+    ab += refract(vec2(0.0, 0.0), surface, 1.0 / 1.333);
+    gl_Position = worldViewProjection * vec4(ab, 0.0, 1.0);
+
+    // orient the normals and pass to the fragment shader
+    v_normal = mat3(worldInverseTranspose) * normal;
+
+    // compute the world position of the surfoace
+    vec3 surfaceWorldPosition = (world * position).xyz;
+
+    // compute the vector of the surface to the light
+    // and pass it to the fragment shader
+    v_surfaceToLight = lightWorldPosition - surfaceWorldPosition;
+
+    // compute the vector of the surface to the view/camera
+    // and pass it to the fragment shader
+    v_surfaceToView = viewWorldPosition - surfaceWorldPosition;
+  }
+</script>
+
+<script type="application/vertexShader" id="oscillationVertexShader">#version 300 es
+
+  precision highp float;
+
+  in vec2 position;
+  in vec2 uv;
+
+  uniform mat4 worldViewProjection;
+  uniform vec3 color;
+  uniform float time;
+
+  out vec2 v_uv;
+  out vec3 oColor;
+  float rand(vec2 n) {
+    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+  }
+
+  float noise(vec2 p){
+    vec2 ip = floor(p);
+    vec2 u = fract(p);
+    u = u*u* (3.0-2.0*u);
+    float res = mix(
+    mix(rand (ip), rand (ip+vec2(1.0,0.0)), u.x),
+    mix(rand(ip+vec2(0.0,1.0)), rand(ip+vec2 (1.0,1.0)),u.x),u.y);
+    return res*res;
+  }
+  float fbm(vec2 x){
+    float v = 0.0;
+    float a = 0.5;
+    vec2 shift = vec2(100);
+    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+    for (int i = 0; i < 5; ++i) {
+      v += a* noise(x);
+      x = rot * x * 2.0 + shift;
+      a*= 0.5;
+    }
+    return v;
+  }
+
+
+  void main() {
+    v_uv = uv;
+
+    vec2 ab = position.xy;
+
+
+    float strength = 0.1;
+    vec2 surface = strength * vec2(
+      mix(-20.0, 20.0, fbm(5.0 * ab + 0.5 * time)),
+      mix(-20.0, 20.0, fbm(5.0 * ab + 0.5 * time))
+      );
+    ab += refract(vec2(0.0, 0.0), surface, 1.0 / 1.333);
+    oColor = color;
+    gl_Position = worldViewProjection * vec4(ab, 0.0, 1.0);
+  }
+</script>
+<script type="application/fragmentShader" id="textureFragmentShader">#version 300 es
+
+    uniform sampler2D textureSampler;
+    in vec2 v_uv;
+    in vec3 oColor;
+    out vec4 glColors;
+
+    void main() {
+        glColors =  texture(textureSampler, v_uv);
+    }
+</script>
+
+<script type="application/vertexShader" id="FresnelVertex">#version 300 es
+
+precision highp float;
+in vec3 position;
+in vec2 uv;
+in vec3 normal;
+//in vec4 a_colour;
+
+uniform mat4 worldViewProjection;
+uniform mat4 world;
+
+//out vec4 v_colour;
+out vec2 tex_coords;
+out vec3 vPositionW;
+out vec3 vNormalW;
+
+void main() {
+   tex_coords = uv;
+   gl_Position = worldViewProjection * vec4(position, 1.0);
+
+   vPositionW = vec3(world * vec4(position, 1.0));
+   vNormalW = normalize(vec3(world * vec4(normal, 0.0)));
+}
+</script>
+<script type="application/fragmentShader" id="FresnelFragment">#version 300 es
+
+precision mediump float;
+
+in vec4 v_colour;
+in vec2 tex_coords;
+in vec3 vPositionW;
+in vec3 vNormalW;
+
+out vec4 pixel;
+
+uniform vec3 cameraPosition;
+uniform sampler2D seashellTextureSampler;
+
+const float outline_thickness = .2;
+const vec3 outline_colour = vec3(0, 0, 1);
+const float outline_threshold = .5;
+
+void main() {
+
+    vec3 color = vec3(1.0, 1.0, 1.0);
+    vec3 viewDirectionW = normalize(cameraPosition - vPositionW);
+
+    // Fresnel
+    float fresnelTerm = dot(viewDirectionW, vNormalW);
+    fresnelTerm = clamp(1.0 - fresnelTerm, 0., 1.);
+
+    pixel = vec4(color * fresnelTerm, 1.) * texture(seashellTextureSampler, tex_coords);
+}
+</script>
+
+
+<script type="application/vertexShader" id="seashellWaveVertex">#version 300 es
+
+precision highp float;
+in vec3 position;
+in vec2 uv;
+in vec3 normal;
+
+uniform float time;
+uniform mat4 worldViewProjection;
+
+out vec3 vPosition;
+out vec3 vNormal;
+out vec2 vUV;
+
+void main() {
+   vec3 v = position;
+    v.x += sin(2.0 * position.y + (time*0.005)) * 0.05;
+
+    gl_Position = worldViewProjection * vec4(v, 1.0);
+
+    vPosition = position;
+    vNormal = normal;
+    vUV = uv;
+}
+</script>
+<script type="application/fragmentShader" id="seashellWaveFragment">#version 300 es
+
+precision mediump float;
+
+in vec3 vPosition;
+in vec3 vNormal;
+in vec2 vUV;
+
+out vec4 fragColor;
+
+uniform mat4 world;
+
+uniform vec3 cameraPosition;
+uniform sampler2D seashellTextureSampler;
+
+void main() {
+
+    vec3 vLightPosition = vec3(0,20,10);
+
+    // World values
+    vec3 vPositionW = vec3(world * vec4(vPosition, 1.0));
+    vec3 vNormalW = normalize(vec3(world * vec4(vNormal, 0.0)));
+    vec3 viewDirectionW = normalize(cameraPosition - vPositionW);
+
+    // Light
+    vec3 lightVectorW = normalize(vLightPosition - vPositionW);
+    vec3 color = texture(seashellTextureSampler, vUV).rgb;
+
+    // diffuse
+    float ndl = max(0., dot(vNormalW, lightVectorW));
+
+    // Specular
+    vec3 angleW = normalize(viewDirectionW + lightVectorW);
+    float specComp = max(0., dot(vNormalW, angleW));
+    specComp = pow(specComp, max(1., 64.)) * 2.;
+
+    fragColor = vec4(color * ndl + vec3(specComp), 1.);
+}
+</script>
+
+<script type="application/vertexShader" id="blurVertex">#version 300 es
+
+precision highp float;
+in vec3 position;
+in vec2 uv;
+
+uniform mat4 worldViewProjection;
+
+out vec2 tex_coord;
+
+void main() {
+   tex_coord = uv;
+   gl_Position = worldViewProjection * vec4(position, 1);
+}
+</script>
+<script type="application/fragmentShader" id="blurFragment">#version 300 es
+
+precision mediump float;
+
+in vec2 tex_coord;
+out vec4 pixel;
+
+uniform sampler2D seashellTextureSampler;
+const vec2 blur_size = vec2(10.0, 10.0);
+
+void main() {
+    ivec2 size = textureSize(seashellTextureSampler, 0);
+
+    float uv_x = tex_coord.x * float(size.x);
+    float uv_y = tex_coord.y * float(size.y);
+
+    vec4 sum = vec4(0.0);
+    for (int n = 0; n < 9; ++n) {
+        uv_y = (tex_coord.y * float(size.y)) + (blur_size.y * float(float(n) - 4.5));
+        vec4 h_sum = vec4(0.0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x - (4.0 * blur_size.x), uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x - (3.0 * blur_size.x), uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x - (2.0 * blur_size.x), uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x - blur_size.x, uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x, uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x + blur_size.x, uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x + (2.0 * blur_size.x), uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x + (3.0 * blur_size.x), uv_y), 0);
+        h_sum += texelFetch(seashellTextureSampler, ivec2(uv_x + (4.0 * blur_size.x), uv_y), 0);
+        sum += h_sum / 9.0;
+    }
+
+    pixel = sum / 9.0;
+}
+</script>
+
+<script type="module" src="courseProjects/started/game1.js"></script>
+</body>
+</html>
