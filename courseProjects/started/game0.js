@@ -40,5 +40,5 @@ function startGame() {
     localStorage.setItem('PlayerName', document.getElementById("name").value.toUpperCase());
     localStorage.setItem('Score', '0');
     localStorage.setItem('GameOver', '0');
-    window.location.href = './game.html';
+    window.location.assign('./game.html');
 }
