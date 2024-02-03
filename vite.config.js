@@ -19,5 +19,6 @@ export default defineConfig({
                 game: './game.html',
             }
         }
-    }
+    },
+    assetsInclude: './asset/**/*'
 });
