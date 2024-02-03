@@ -22,11 +22,10 @@ export default defineConfig({
         {
             name: "fix-recast",
             transform(code, id) {
-                if (id.includes("recast-detour.js")) {
+                if (id.includes("recast-detour")) {
                     return code.replace(`this["Recast"]`, "window[\"Recast\"]");
                 }
             },
         },
     ],
-    // assetsInclude: './asset/**/*'
 });
