@@ -158,8 +158,6 @@ async function loadEnvironment(scene, light, camera) {
                     m.checkCollisions = false;
                 }
 
-                if (m.material)
-                    m.material.wireframe = true;
                 //m.position.y = 5;
             });
             resolve(meshes); // Resolve the promise with the meshes array
