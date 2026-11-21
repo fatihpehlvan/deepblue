@@ -103,3 +103,39 @@ select {
 }
 
 
+
+/* How to play, on the start screen */
+#how-to-play {
+    max-width: 560px;
+    margin: 24px 16px 0;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+#how-to-play h2 {
+    font-size: 20px;
+    text-align: center;
+    margin: 0 0 8px;
+}
+
+#how-to-play ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+#how-to-play li {
+    margin: 4px 0;
+}
+
+#touch-note {
+    display: none;
+    max-width: 560px;
+    margin: 16px;
+    text-align: center;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    #touch-note {
+        display: block;
+    }
+}
